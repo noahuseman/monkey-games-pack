@@ -670,7 +670,12 @@ def main():
                            layer, "catch")
         os.makedirs(out, exist_ok=True)
         for name, fn in table.items():
-            fn().save(os.path.join(out, name + ".png"))
+            # Halved and doubled back, so a texel is a 2x2 block and these
+            # match the grain of everything else.
+            im = fn()
+            w, h = im.size
+            im = im.resize((w // 2, h // 2), Image.NEAREST)                    .resize((w, h), Image.NEAREST)
+            im.save(os.path.join(out, name + ".png"))
             # The asset the item's equippable component names. One layer
             # each: these are accessories, not armour, so there is no baby
             # variant and nothing for a horse to wear.
