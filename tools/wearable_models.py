@@ -32,10 +32,31 @@ def tile(col, row):
     return [col * 4, row * 4, col * 4 + 4, row * 4 + 4]
 
 
+# How much bigger a worn model has to be drawn than it looks on paper.
+#
+# CustomHeadLayer.translateToHead scales a worn model by 0.625, so a
+# 16-unit model box is 0.625 blocks - only 1.25x the width of the 0.5-block
+# head, not the 2x it would be at 1:1. The head therefore occupies units
+# 1.6 to 14.4 of the model, not 4 to 12.
+#
+# Everything below is authored against head = 4..12, because that is the
+# readable way to think about it, and scaled on the way out. The first
+# build shipped unscaled and every head piece came out smaller than the
+# skull it was meant to cover.
+WORN_SCALE = 6.4 / 4.0          # 1.6
+WORN_MID = 8.0
+
+
+def _s(c):
+    return round(WORN_MID + (c - WORN_MID) * WORN_SCALE, 4)
+
+
 def el(frm, to, faces, rotation=None):
-    e = {"from": frm, "to": to, "faces": faces}
+    e = {"from": [_s(c) for c in frm], "to": [_s(c) for c in to], "faces": faces}
     if rotation:
-        e["rotation"] = rotation
+        r = dict(rotation)
+        r["origin"] = [_s(c) for c in r["origin"]]
+        e["rotation"] = r
     return e
 
 
