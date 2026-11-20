@@ -46,9 +46,13 @@ def tile(col, row):
 WORN_SCALE = 6.4 / 4.0          # 1.6
 WORN_MID = 8.0
 
+# Carried pieces are authored at true size and get no head correction, so
+# the scale is switched off while they are built.
+CUR_SCALE = [WORN_SCALE]
+
 
 def _s(c):
-    return round(WORN_MID + (c - WORN_MID) * WORN_SCALE, 4)
+    return round(WORN_MID + (c - WORN_MID) * CUR_SCALE[0], 4)
 
 
 def el(frm, to, faces, rotation=None):
@@ -333,6 +337,66 @@ def lily_pad():
             "elements": els}
 
 
+
+# ================================== the pieces carried as objects on the body
+#
+# Authored at true size: 16 units is one block, and the plugin scales each
+# one down to where it looks right on a player. Four or five boxes apiece -
+# enough to have sides, not enough to stop looking like Minecraft.
+
+def held_lantern():
+    T = "#0"
+    cap, glass, dark, hook = tile(0, 0), tile(1, 0), tile(2, 0), tile(3, 0)
+    els = [
+        el([5, 2, 5], [11, 4, 11], faces(allsides(T, cap, up=(T, cap), down=(T, dark)))),
+        el([5.5, 4, 5.5], [10.5, 11, 10.5], faces(allsides(T, glass))),
+        el([4.5, 11, 4.5], [11.5, 13, 11.5],
+           faces(allsides(T, cap, up=(T, cap), down=(T, dark)))),
+        el([7.25, 13, 7.25], [8.75, 15, 8.75],
+           faces(allsides(T, hook, up=(T, hook)))),
+        el([6.5, 15, 7.5], [9.5, 16, 8.5],
+           faces(allsides(T, hook, up=(T, hook), down=(T, hook)))),
+    ]
+    return {"textures": {"0": NS + ":item/catch/worn/held/phantom_lantern",
+                         "particle": NS + ":item/catch/worn/held/phantom_lantern"},
+            "elements": els}
+
+
+def held_chest():
+    T = "#0"
+    base, lid, lock, strap = tile(0, 0), tile(1, 0), tile(2, 0), tile(3, 0)
+    els = [
+        el([3, 2, 4], [13, 9, 12], faces(allsides(T, base, up=(T, base), down=(T, base)))),
+        el([3, 9, 4], [13, 13, 12], faces(allsides(T, lid, up=(T, lid), down=(T, lid)))),
+        el([7, 7.5, 3.4], [9, 11, 4.2], faces(allsides(T, lock, up=(T, lock), down=(T, lock)))),
+        el([4.5, 2, 11.9], [6, 13, 13], faces(allsides(T, strap, up=(T, strap), down=(T, strap)))),
+        el([10, 2, 11.9], [11.5, 13, 13], faces(allsides(T, strap, up=(T, strap), down=(T, strap)))),
+    ]
+    return {"textures": {"0": NS + ":item/catch/worn/held/sunken_treasure_chest",
+                         "particle": NS + ":item/catch/worn/held/sunken_treasure_chest"},
+            "elements": els}
+
+
+def held_boot():
+    T = "#0"
+    upper, shaft, sole, tread = tile(0, 0), tile(1, 0), tile(2, 0), tile(3, 0)
+    els = [
+        el([4, 1, 2], [12, 3, 13], faces(allsides(T, sole, up=(T, sole), down=(T, tread)))),
+        el([4, 3, 2], [12, 7, 13], faces(allsides(T, upper, up=(T, upper), down=(T, sole)))),
+        el([4.5, 7, 7], [11.5, 13, 13], faces(allsides(T, shaft, up=(T, shaft), down=(T, upper)))),
+        el([4.2, 3, 1.4], [11.8, 6, 2.6], faces(allsides(T, upper, up=(T, upper), down=(T, sole)))),
+    ]
+    return {"textures": {"0": NS + ":item/catch/worn/held/old_boot",
+                         "particle": NS + ":item/catch/worn/held/old_boot"},
+            "elements": els}
+
+
+HELD = {
+    "phantom_lantern": held_lantern,
+    "sunken_treasure_chest": held_chest,
+    "old_boot": held_boot,
+}
+
 # ---------------------------------------------------------------------- output
 
 MODELS = {
@@ -341,6 +405,11 @@ MODELS = {
     "pink_squid": pink_squid,
     "lily_pad": lily_pad,
 }
+
+
+def held_definition(slug):
+    return {"model": {"type": "minecraft:model",
+                      "model": NS + ":item/catch/worn/held/" + slug}}
 
 
 def item_definition(slug):
@@ -383,6 +452,22 @@ def main():
             json.dump(item_definition(slug), f, indent=2)
             f.write("\n")
         print("%-24s %2d elements" % (slug, len(model["elements"])))
+
+    # The carried pieces, at true size.
+    CUR_SCALE[0] = 1.0
+    hmdir = os.path.join(mdir, "held")
+    hidir = os.path.join(idir, "held")
+    os.makedirs(hmdir, exist_ok=True)
+    os.makedirs(hidir, exist_ok=True)
+    for slug, fn in HELD.items():
+        model = fn()
+        with open(os.path.join(hmdir, slug + ".json"), "w", newline="\n") as f:
+            json.dump(model, f, indent=2)
+            f.write("\n")
+        with open(os.path.join(hidir, slug + ".json"), "w", newline="\n") as f:
+            json.dump(held_definition(slug), f, indent=2)
+            f.write("\n")
+        print("%-24s %2d elements (carried)" % (slug, len(model["elements"])))
     return 0
 
 

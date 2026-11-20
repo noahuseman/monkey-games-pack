@@ -176,22 +176,21 @@ def diving_helmet():
     rubber_d = (34, 34, 38, 255)
 
     def weather(t, heavy=False):
-        """Verdigris blotches and scratches - what the lake did to it."""
-        for _ in range(5 if heavy else 3):
+        """
+        One or two patches of verdigris, and nothing else.
+
+        The first pass put three to five soft blotches AND four random
+        scratch walks on every single face, and the helmet came out looking
+        photographic rather than built out of blocks. Minecraft reads at a
+        glance; a surface wants one idea on it, not five.
+        """
+        for _ in range(2 if heavy else 1):
             cx, cy = rng.randrange(TILE), rng.randrange(TILE)
-            r = rng.uniform(1.2, 2.8)
+            r = rng.uniform(1.6, 2.6)
             for y in range(TILE):
                 for x in range(TILE):
-                    d = math.hypot(x - cx, y - cy)
-                    if d <= r and rng.random() < 0.75:
-                        t.blend(x, y, (patina[0], patina[1], patina[2],
-                                       int(150 * (1 - d / r)) + 40))
-        for _ in range(4):
-            x, y = rng.randrange(TILE), rng.randrange(TILE)
-            for _ in range(rng.randrange(2, 5)):
-                t.blend(x, y, (brass_dd[0], brass_dd[1], brass_dd[2], 120))
-                x += rng.choice((-1, 0, 1))
-                y += rng.choice((-1, 0, 1))
+                    if math.hypot(x - cx, y - cy) <= r:
+                        t.blend(x, y, (patina[0], patina[1], patina[2], 210))
 
     def plate(t, seams=True):
         t.vgrad(brass_l, brass_d)
@@ -344,7 +343,7 @@ def eternal_ice_cube():
             crack(t, rng, (deep[0], deep[1], deep[2], 130),
                   rng.randrange(3, 13), rng.randrange(1, 5),
                   rng.randrange(4, 8))
-        for _ in range(4):                      # trapped bubbles
+        for _ in range(2):                      # trapped bubbles
             bx, by = rng.randrange(2, 14), rng.randrange(2, 14)
             t.blend(bx, by, (255, 255, 255, 190))
             t.blend(bx + 1, by, (255, 255, 255, 110))
@@ -428,7 +427,7 @@ def pink_squid():
     def skin(t, top, bottom, spots=0.16):
         t.vgrad(top, bottom)
         # chromatophores: the pigment cells, scattered but clustered
-        for _ in range(18):
+        for _ in range(8):
             cx, cy = rng.randrange(TILE), rng.randrange(TILE)
             for _ in range(rng.randrange(1, 4)):
                 x = cx + rng.randrange(-1, 2)
@@ -670,6 +669,109 @@ def lily_trim():
     return im
 
 
+
+# ===================================== the pieces carried as objects on the body
+#
+# A lantern, a chest and a boot are things with four sides, so they are
+# modelled rather than extruded from their sprite. Kept deliberately plain:
+# three or four flat colours, one highlight edge, one shadow edge, and
+# nothing that reads as a photograph of a surface.
+
+def held_lantern():
+    im = sheet()
+    iron = (74, 86, 94, 255)
+    iron_l = (118, 134, 142, 255)
+    iron_d = (40, 50, 57, 255)
+    glow = (150, 232, 248, 255)
+    glow_l = (226, 250, 255, 255)
+    glow_d = (70, 174, 204, 255)
+
+    t = Tile(im, 0, 0)                      # metal cap
+    t.fill(iron)
+    t.rect(0, 0, 15, 2, iron_l)
+    t.rect(0, 13, 15, 15, iron_d)
+
+    t = Tile(im, 1, 0)                      # the glass, lit
+    t.fill(glow)
+    t.rect(0, 0, 15, 3, glow_l)
+    t.rect(0, 12, 15, 15, glow_d)
+    t.rect(0, 0, 2, 15, iron)               # frame posts
+    t.rect(13, 0, 15, 15, iron)
+
+    t = Tile(im, 2, 0)                      # plain metal
+    t.fill(iron_d)
+    t.rect(0, 0, 15, 2, iron)
+
+    Tile(im, 3, 0).fill(iron_l)             # the hook
+    return im
+
+
+def held_chest():
+    im = sheet()
+    wood = (104, 72, 40, 255)
+    wood_l = (134, 98, 58, 255)
+    wood_d = (70, 46, 24, 255)
+    iron = (120, 122, 132, 255)
+    gold = (214, 165, 43, 255)
+    moss = (66, 108, 60, 255)
+
+    t = Tile(im, 0, 0)                      # chest base
+    t.fill(wood)
+    t.rect(0, 0, 15, 1, wood_l)
+    t.rect(0, 14, 15, 15, wood_d)
+    t.rect(2, 0, 3, 15, iron)
+    t.rect(12, 0, 13, 15, iron)
+    t.rect(0, 11, 15, 13, moss)
+
+    t = Tile(im, 1, 0)                      # lid
+    t.fill(wood_l)
+    t.rect(0, 0, 15, 2, (158, 120, 74, 255))
+    t.rect(0, 13, 15, 15, wood_d)
+    t.rect(2, 0, 3, 15, iron)
+    t.rect(12, 0, 13, 15, iron)
+
+    t = Tile(im, 2, 0)                      # lock
+    t.fill(gold)
+    t.rect(0, 0, 15, 3, (240, 205, 110, 255))
+    t.rect(6, 7, 9, 15, (72, 50, 12, 255))
+
+    t = Tile(im, 3, 0)                      # strap
+    t.fill((62, 44, 30, 255))
+    t.rect(0, 0, 15, 2, (94, 70, 48, 255))
+    return im
+
+
+def held_boot():
+    im = sheet()
+    lea = (112, 78, 48, 255)
+    lea_l = (142, 104, 66, 255)
+    lea_d = (74, 50, 30, 255)
+    sole = (58, 52, 46, 255)
+    sole_l = (92, 84, 74, 255)
+    algae = (82, 122, 64, 255)
+
+    t = Tile(im, 0, 0)                      # upper
+    t.fill(lea)
+    t.rect(0, 0, 15, 2, lea_l)
+    t.rect(0, 13, 15, 15, lea_d)
+    t.rect(0, 10, 5, 12, algae)
+
+    t = Tile(im, 1, 0)                      # shaft, with a turned-down cuff
+    t.fill(lea_l)
+    t.rect(0, 0, 15, 3, (168, 128, 88, 255))
+    t.rect(0, 12, 15, 15, lea_d)
+
+    t = Tile(im, 2, 0)                      # sole
+    t.fill(sole)
+    t.rect(0, 0, 15, 2, sole_l)
+
+    t = Tile(im, 3, 0)                      # tread, seen from below
+    t.fill(sole_l)
+    for y in range(0, TILE, 4):
+        t.rect(0, y, 15, y + 1, sole)
+    return im
+
+
 # ---------------------------------------------------------------------- output
 
 SHEETS = {
@@ -678,7 +780,25 @@ SHEETS = {
     "pink_squid": pink_squid,
     "lily_pad": lily_pad,
     "lily_pad_trim": lily_trim,
+    "held/phantom_lantern": held_lantern,
+    "held/sunken_treasure_chest": held_chest,
+    "held/old_boot": held_boot,
 }
+
+# Everything is painted at full 16x16 per tile and then halved and doubled
+# back, so each texel becomes a 2x2 block.
+#
+# This is here because the first build was too fine to read as Minecraft -
+# single-pixel rivets, hairline scratches, a gradient on every face. Working
+# at the finer grid and chunking on the way out keeps the painting code
+# straightforward and still lands on a surface that looks like the game.
+CHUNK = 2
+
+
+def chunky(im):
+    w, h = im.size
+    small = im.resize((w // CHUNK, h // CHUNK), Image.NEAREST)
+    return small.resize((w, h), Image.NEAREST)
 
 
 def main():
@@ -694,8 +814,9 @@ def main():
     os.makedirs(out, exist_ok=True)
     for name, fn in SHEETS.items():
         path = os.path.join(out, name + ".png")
-        fn().save(path)
-        print("wrote " + path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        chunky(fn()).save(path)
+        print("wrote " + name)
     return 0
 
 
