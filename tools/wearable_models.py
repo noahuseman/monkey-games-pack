@@ -404,7 +404,6 @@ MODELS = {
     "deep_sea_diving_helmet": diving_helmet,
     "eternal_ice_cube": eternal_ice_cube,
     "pink_squid": pink_squid,
-    "lily_pad": lily_pad,
 }
 
 

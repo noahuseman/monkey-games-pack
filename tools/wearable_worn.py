@@ -783,8 +783,6 @@ SHEETS = {
     "deep_sea_diving_helmet": diving_helmet,
     "eternal_ice_cube": eternal_ice_cube,
     "pink_squid": pink_squid,
-    "lily_pad": lily_pad,
-    "lily_pad_trim": lily_trim,
     "held/phantom_lantern": held_lantern,
     "held/sunken_treasure_chest": held_chest,
     "held/old_boot": held_boot,

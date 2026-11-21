@@ -17,6 +17,7 @@ Usage:  python cosmetics.py <pack-root>
 """
 
 import json
+import math
 import os
 import sys
 
@@ -107,8 +108,111 @@ def speckled(colour, spot, top=None, bottom=None):
         base(px, w, h, face)
         for y in range(h):
             for x in range(w):
-                if ((x * 7 + y * 13 + w * 3 + h) % 11) == 0:
+                # Hashed, not counted. A plain modulus of x and y lands the
+                # marks on a regular diagonal, which reads as polka dots
+                # rather than as weathering - obvious the moment it is on a
+                # curved-looking surface.
+                hsh = ((x + 1) * 73856093) ^ ((y + 1) * 19349663) ^ (w * 83492791)
+                if (hsh >> 7) % 9 == 0:
                     px[x, y] = spot
+    return paint
+
+
+
+# ------------------------------------------- marks that survive at skin scale
+#
+# A player skin gives a head 8 pixels across, and that is the budget here:
+# one texel per model unit, the same grid as the skin. At that size a mark
+# is either a whole pixel or it is nothing, so each helper below places
+# WHOLE pixels at known spots rather than shading a gradient. The earlier
+# art failed in both directions at once - too fine to read as Minecraft, too
+# vague to tell a diving helmet from a bucket.
+
+def rivets(base, stud, inset=1):
+    """Studs at the corners of a face. Reads as metal plate at any size."""
+    def paint(px, w, h, face):
+        base(px, w, h, face)
+        if w < 4 or h < 4:
+            return
+        for x in (inset, w - 1 - inset):
+            for y in (inset, h - 1 - inset):
+                px[x, y] = stud
+    return paint
+
+
+def seamed(base, seam, rows=(0.5,)):
+    """A band straight across a face - a weld, a strap, a waterline."""
+    def paint(px, w, h, face):
+        base(px, w, h, face)
+        for f in rows:
+            y = int(h * f)
+            if 0 <= y < h:
+                for x in range(w):
+                    px[x, y] = seam
+    return paint
+
+
+def planks(colour, groove, light):
+    """Vertical boards. What makes a wooden box read as a chest."""
+    def paint(px, w, h, face):
+        for y in range(h):
+            for x in range(w):
+                px[x, y] = light if y == 0 else colour
+        for x in range(w):
+            if x % 3 == 2:
+                for y in range(h):
+                    px[x, y] = groove
+    return paint
+
+
+def cracked(colour, crack, pale):
+    """Ice: a pale top, a couple of fractures, nothing else."""
+    def paint(px, w, h, face):
+        for y in range(h):
+            for x in range(w):
+                px[x, y] = pale if y < max(1, h // 4) else colour
+        # Two fractures, placed from the face size so they never move.
+        for i, (sx, sy) in enumerate(((w // 3, h // 3), (2 * w // 3, h // 2))):
+            x, y = sx, sy
+            for step in range(min(w, h) // 2 + 1):
+                if 0 <= x < w and 0 <= y < h:
+                    px[x, y] = crack
+                x += 1 if (step + i) % 2 else 0
+                y += 1
+    return paint
+
+
+def eyed(white, pupil, glint, skin):
+    """One big eye: pupil, catchlight, lid. The squid lives or dies on it."""
+    def paint(px, w, h, face):
+        for y in range(h):
+            for x in range(w):
+                px[x, y] = skin
+        if w < 3 or h < 3:
+            return
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                px[x, y] = white
+        cx0, cx1 = max(1, w // 2 - 1), min(w - 2, w // 2)
+        cy0, cy1 = max(1, h // 2 - 1), min(h - 2, h // 2)
+        for y in range(cy0, cy1 + 1):
+            for x in range(cx0, cx1 + 1):
+                px[x, y] = pupil
+        px[cx0, cy0] = glint
+    return paint
+
+
+def glowing(glass, frame, core):
+    """A lit pane: bright in the middle, falling off to the frame."""
+    def paint(px, w, h, face):
+        for y in range(h):
+            for x in range(w):
+                if x == 0 or x == w - 1 or y == 0 or y == h - 1:
+                    px[x, y] = frame
+                elif 1 < x < w - 2 and 1 < y < h - 2:
+                    px[x, y] = core
+                else:
+                    px[x, y] = glass
     return paint
 
 
@@ -124,16 +228,17 @@ def diving_helmet():
     glass_l = (150, 212, 222, 255)
     rubber = (52, 52, 58, 255)
 
-    shell = speckled(brass, patina, top=brass_l, bottom=brass_d)
-    plate = flat(brass_l, top=(238, 200, 140, 255), bottom=brass_d)
+    shell = rivets(speckled(brass, patina, top=brass_l, bottom=brass_d), iron)
+    plate = rivets(flat(brass_l, top=(238, 200, 140, 255), bottom=brass_d), iron)
     return [
         Box((3, 4, 3), (13, 14, 13), shell, "shell"),
-        Box((2, 6, 2), (14, 10, 14), flat(brass, top=brass_l, bottom=brass_d), "bulge"),
+        Box((2, 6, 2), (14, 10, 14),
+            seamed(flat(brass, top=brass_l, bottom=brass_d), brass_d), "bulge"),
         Box((2, 2, 2), (14, 4, 14), plate, "collar"),
-        Box((5, 6, 1), (11, 12, 3), flat(brass_l, edge=iron), "rim"),
-        Box((6, 7, 0), (10, 11, 1), framed(glass, iron, glass_l), "glass"),
-        Box((13, 8, 6), (15, 11, 9), framed(glass, brass_l), "port_l"),
-        Box((1, 8, 6), (3, 11, 9), framed(glass, brass_l), "port_r"),
+        Box((5, 6, 1), (11, 12, 3), rivets(flat(brass_l), iron, 0), "rim"),
+        Box((6, 7, 0), (10, 11, 1), glowing(glass, iron, glass_l), "glass"),
+        Box((13, 8, 6), (15, 11, 9), glowing(glass, brass_l, glass_l), "port_l"),
+        Box((1, 8, 6), (3, 11, 9), glowing(glass, brass_l, glass_l), "port_r"),
         Box((6, 10, 13), (10, 13, 15), banded(rubber, (28, 28, 32, 255), 2), "hose"),
         Box((6, 14, 6), (10, 16, 10), flat(brass_l, bottom=brass_d), "knob"),
     ]
@@ -146,7 +251,7 @@ def eternal_ice_cube():
     white = (238, 250, 255, 255)
     deep = (46, 108, 142, 255)
 
-    body = speckled(ice, white, top=ice_l, bottom=ice_d)
+    body = cracked(ice, deep, ice_l)
     shard = flat(ice_l, bottom=ice)
     icicle = flat(ice, bottom=deep)
     return [
@@ -173,7 +278,7 @@ def pink_squid():
 
     mantle = speckled(pink, spot, top=pink_l, bottom=pink_d)
     arm = flat(pink, top=pink_l, bottom=pink_d, edge=pink_d)
-    eye = framed(dark, pale)
+    eye = eyed(pale, dark, (255, 255, 255, 255), pink_d)
     boxes = [
         Box((3, 4, 3), (13, 14, 13), mantle, "mantle"),
         Box((4, 14, 4), (12, 17, 12), flat(pink_d, top=pink), "taper"),
@@ -201,7 +306,7 @@ def held_lantern():
     cap = flat(iron, top=iron_l, bottom=iron_d)
     return [
         Box((5, 2, 5), (11, 4, 11), cap, "foot"),
-        Box((6, 4, 6), (10, 11, 10), framed(glow, iron, glow_l), "glass"),
+        Box((6, 4, 6), (10, 11, 10), glowing(glow, iron, glow_l), "glass"),
         Box((5, 11, 5), (11, 13, 11), cap, "cap"),
         Box((7, 13, 7), (9, 15, 9), flat(iron_l), "hook"),
         Box((7, 15, 7), (9, 16, 9), flat(iron_l), "ring"),
@@ -216,8 +321,14 @@ def held_chest():
     gold = (214, 165, 43, 255)
     leather = (64, 46, 30, 255)
     return [
-        Box((3, 2, 4), (13, 9, 12), speckled(wood, moss, top=wood_l, bottom=wood_d), "base"),
-        Box((3, 9, 4), (13, 13, 12), banded(wood_l, wood_d, 3, top=(162, 124, 78, 255)), "lid"),
+        # The lid is painted markedly lighter than the base, with a dark
+        # seam under it. Planked identically they read as one crate, and a
+        # crate is not a chest - the lid line is the whole silhouette.
+        Box((3, 2, 4), (13, 9, 12),
+            seamed(planks(wood, wood_d, wood_l), wood_d, (0.0,)), "base"),
+        Box((3, 9, 4), (13, 13, 12),
+            planks((168, 128, 80, 255), (120, 88, 50, 255),
+                   (196, 156, 104, 255)), "lid"),
         Box((7, 8, 3), (9, 11, 4), flat(gold, bottom=(150, 110, 20, 255)), "lock"),
         Box((4, 2, 12), (6, 13, 13), flat(leather, top=(96, 72, 48, 255)), "strap_l"),
         Box((10, 2, 12), (12, 13, 13), flat(leather, top=(96, 72, 48, 255)), "strap_r"),
@@ -239,6 +350,154 @@ def grow(b):
         return int(round(8 + (c - 8) * WORN))
     return Box((g(b.x0), g(b.y0), g(b.z0)), (g(b.x1), g(b.y1), g(b.z1)),
                b.paint, b.name)
+
+
+
+# ------------------------------------------------------------------ lily pad
+#
+# The odd one out, and it earns it: the pad is a disc, not a box, so box UV
+# has nothing to unwrap. It is cut into slices across z, each one as wide as
+# the circle is at its narrow end, and the alpha in the texture rounds off
+# what the slices leave square.
+#
+# The density still has to match everything else. The disc sheet is one
+# texel per model unit, and the model is authored at FINAL size - no 1.6x
+# afterwards - so a pad texel is a skin texel. The slices' edge faces read a
+# single row straight out of the disc at the z they sit at, which is both
+# exactly one texel tall on a one-unit slab and, usefully, the leaf's own
+# rim colours, so edge and surface cannot drift apart.
+
+LILY_R = 18           # radius, in model units, at worn size
+LILY_Y = 15           # rests just above the head, which tops out at 14.4
+LILY_SPAN = 64        # the disc sheet covers this many units each way
+LILY_LO = 8 - LILY_SPAN // 2
+NOTCH = math.radians(13.0)
+
+
+def _lily_colour(wx, wz, under):
+    green = (86, 140, 56, 255)
+    green_d = (58, 102, 40, 255)
+    green_dd = (38, 70, 28, 255)
+    green_l = (120, 174, 78, 255)
+    vein = (48, 88, 34, 255)
+    under_c = (124, 76, 106, 255)
+    under_d = (84, 50, 74, 255)
+    under_l = (156, 102, 136, 255)
+
+    dx, dz = wx - 8, wz - 8
+    r = math.hypot(dx, dz)
+    if r > LILY_R:
+        return None
+    if abs(math.atan2(dx, -dz)) < NOTCH:
+        return None                      # the notch, opening forwards
+    k = r / LILY_R
+    if under:
+        c = under_l if k < 0.5 else under_c
+        if k > 0.88:
+            c = under_d
+        if abs(math.sin(math.atan2(dz, dx) * 9.0)) > 0.85 and r > 2:
+            c = under_d
+        return c
+    # Top: flat green, a darker rim, veins out of the middle.
+    c = green_l if (int(wx) + int(wz)) % 7 == 0 else green
+    if k > 0.90:
+        c = green_dd
+    elif k > 0.80:
+        c = green_d
+    if abs(math.sin(math.atan2(dz, dx) * 7.0)) > 0.90 and r > 3:
+        c = vein
+    if r < 2:
+        c = green_dd
+    return c
+
+
+def lily_pad(root):
+    """Builds its own model: slices plus a box-UV flower."""
+    n = LILY_SPAN
+    disc = Image.new("RGBA", (n * 2, n), (0, 0, 0, 0))
+    dpx = disc.load()
+    for half, under in ((0, False), (n, True)):
+        for py in range(n):
+            for px_ in range(n):
+                wx = LILY_LO + px_ + 0.5
+                wz = (LILY_LO + n - 1 - py + 0.5) if under else (LILY_LO + py + 0.5)
+                c = _lily_colour(wx, wz, under)
+                if c:
+                    dpx[half + px_, py] = c
+
+    # uv is a fraction of the sheet, so these are plain linear maps.
+    def u_top(w):  return (w - LILY_LO) / (n * 2.0) * 16.0
+    def u_bot(w):  return (w - LILY_LO + n) / (n * 2.0) * 16.0
+    def v_top(w):  return (w - LILY_LO) / float(n) * 16.0
+    def v_bot(w):  return (LILY_LO + n - w) / float(n) * 16.0
+    texel_u = 16.0 / (n * 2.0)
+    texel_v = 16.0 / n
+
+    bands = [(-10, -7), (-7, -3), (-3, 1), (1, 5), (5, 11),
+             (11, 15), (15, 19), (19, 23), (23, 26)]
+    els = []
+    for z0, z1 in bands:
+        dz = max(abs(z0 - 8), abs(z1 - 8))
+        hw = int(math.sqrt(max(0.0, LILY_R ** 2 - dz ** 2)))
+        if hw < 1:
+            continue
+        x0, x1 = 8 - hw, 8 + hw
+        els.append({
+            "from": [x0, LILY_Y, z0], "to": [x1, LILY_Y + 1, z1],
+            "faces": {
+                "up":    {"uv": [u_top(x0), v_top(z0), u_top(x1), v_top(z1)],
+                          "texture": "#0"},
+                "down":  {"uv": [u_bot(x0), v_bot(z1), u_bot(x1), v_bot(z0)],
+                          "texture": "#0"},
+                "north": {"uv": [u_top(x0), v_top(z0), u_top(x1), v_top(z0) + texel_v],
+                          "texture": "#0"},
+                "south": {"uv": [u_top(x0), v_top(z1) - texel_v, u_top(x1), v_top(z1)],
+                          "texture": "#0"},
+                # Turned a quarter, and it has to be.
+                #
+                # On a north face the texture's u runs along x, which is
+                # what that face needs. On an east or west face u runs
+                # along Z - so the same column of pixels arrives on its
+                # side, one texel wide against a face that is several
+                # units wide and one unit tall. The face rotation puts it
+                # back the right way round and the density with it.
+                "west":  {"uv": [u_top(x0), v_top(z0), u_top(x0) + texel_u, v_top(z1)],
+                          "rotation": 90, "texture": "#0"},
+                "east":  {"uv": [u_top(x1) - texel_u, v_top(z0), u_top(x1), v_top(z1)],
+                          "rotation": 90, "texture": "#0"},
+            }})
+
+    # The flower, as ordinary boxes on their own sheet.
+    petal = (238, 180, 210, 255)
+    petal_l = (255, 226, 240, 255)
+    petal_d = (196, 118, 156, 255)
+    gold = (240, 200, 74, 255)
+    stem = (86, 140, 56, 255)
+    fx, fz = 14, 14
+    flower = [
+        Box((fx - 3, LILY_Y + 1, fz - 3), (fx + 3, LILY_Y + 2, fz + 3),
+            flat(stem, top=(120, 174, 78, 255)), "calyx"),
+        Box((fx - 5, LILY_Y + 2, fz - 2), (fx + 5, LILY_Y + 3, fz + 2),
+            flat(petal, top=petal_l, bottom=petal_d), "petal_x"),
+        Box((fx - 2, LILY_Y + 2, fz - 5), (fx + 2, LILY_Y + 3, fz + 5),
+            flat(petal, top=petal_l, bottom=petal_d), "petal_z"),
+        Box((fx - 1, LILY_Y + 3, fz - 1), (fx + 1, LILY_Y + 4, fz + 1),
+            flat(gold, top=(255, 232, 150, 255)), "heart"),
+    ]
+    sheet = boxuv.pack(flower)
+    fim = Image.new("RGBA", sheet, (0, 0, 0, 0))
+    fpx = fim.load()
+    for b in flower:
+        for face, (rx, ry, rw, rh) in b.regions().items():
+            patch = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
+            b.paint(patch.load(), rw, rh, face)
+            fim.paste(patch, (rx, ry))
+    els += [boxuv.element(b, sheet, "#1") for b in flower]
+
+    base = NS + ":item/catch/worn/lily_pad"
+    model = {"textures": {"0": base, "1": base + "_flower", "particle": base},
+             "elements": els}
+    return disc, fim, model
 
 
 # ------------------------------------------------------------------- build
@@ -294,6 +553,18 @@ def main():
             json.dump(model, f, indent=2)
             f.write("\n")
         print("%-30s %2d boxes  %dx%d" % (name, len(boxes), sheet[0], sheet[1]))
+
+    disc, fim, model = lily_pad(root)
+    tdir = os.path.join(a, "textures", "item", "catch", "worn")
+    disc.save(os.path.join(tdir, "lily_pad.png"))
+    fim.save(os.path.join(tdir, "lily_pad_flower.png"))
+    with open(os.path.join(a, "models", "item", "catch", "worn",
+                           "lily_pad.json"), "w", newline="\n") as f:
+        json.dump(model, f, indent=2)
+        f.write("\n")
+    print("%-30s %2d elements  %dx%d + %dx%d" % (
+        "lily_pad", len(model["elements"]), disc.size[0], disc.size[1],
+        fim.size[0], fim.size[1]))
     return 0
 
 
