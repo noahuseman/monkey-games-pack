@@ -531,12 +531,20 @@ def held_shark_fin():
     # is what a fin needs to stop being a razor blade - and two above the
     # waist of the blade, because a fin that is equally fat at the tip is
     # a shark-shaped doorstop.
-    root = [(14, 16, 1), (12, 14, 2), (10, 12, 3)]
-    blade = [(14, 16, 4, 15), (12, 14, 4, 15), (10, 12, 5, 14),
-             (8, 10, 6, 14), (6, 8, 8, 13), (4, 6, 10, 13)]
+    # Which edge is the long one.
+    #
+    # Built the other way up first: the long sloping edge along the
+    # BOTTOM and the apex at the top-rear. Worn, that reads as a fin on
+    # backwards, and it is hard to see on paper because the shape is a
+    # triangle either way - the tell is which edge your eye follows out
+    # from the body. The long edge is the top now, running back and down
+    # from the shoulder, and the point finishes low and behind.
+    root = [(14, 16, 15), (12, 14, 14), (10, 12, 13)]
+    blade = [(14, 16, 1, 12), (12, 14, 1, 12), (10, 12, 2, 11),
+             (8, 10, 2, 10), (6, 8, 3, 8), (4, 6, 3, 6)]
     out = []
-    for n, (z0, z1, y0) in enumerate(root):
-        out.append(Box((6, y0, z0), (10, 5 + n, z1),
+    for n, (z0, z1, y1) in enumerate(root):
+        out.append(Box((6, 11 - n, z0), (10, y1, z1),
                        coat((96 + 6 * n, 108 + 6 * n, 120 + 6 * n, 255),
                             grey, 2 + n), "root%d" % n))
     for n, (z0, z1, y0, y1) in enumerate(blade):
