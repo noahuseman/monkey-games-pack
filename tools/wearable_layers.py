@@ -423,124 +423,100 @@ def shark_fin():
 
 def old_boot():
     """
-    A boot that stops at the ankle.
+    A boot that stops at the ankle, drawn pixel by pixel.
 
-    It used to paint rows 2 to 11 of the leg cube - ten of its twelve
-    rows - which is not a boot, it is a legging in leather, and that is
-    exactly what it looked like in game: both legs brown from the hip
-    down. Vanilla's own humanoid layer was the thing to read, and iron
-    boots occupy rows 6 to 11 and nothing above, so this does too. The
-    six rows left are the whole boot: a cuff, two of upper, the welt and
-    the sole, which is as much boot as a 16-pixel leg can hold.
+    Two things were wrong with the old one. It painted rows 2 to 11 of
+    the leg cube - ten of its twelve - which is not a boot, it is a
+    legging in leather, and in game both legs were brown from the hip
+    down; vanilla's own humanoid layer puts iron boots on rows 6 to 11
+    and nothing above, so this does too. And the sheet was being halved
+    on the way out, which left those six rows holding three real pixels.
+
+    What is left is four pixels across and six down per side, and the
+    only way to get a boot out of that is to spend every one of them
+    deliberately. So each face is written out as a little picture rather
+    than built from bands: the instep carries a tongue, eyelets and
+    crossed laces, the heel a seam and a pull tab, the outer side a strap
+    with a brass buckle, and all four meet at a stitched welt above a
+    dark sole. Shading is per face afterwards, outer faces lit and inner
+    ones not, which is what keeps it reading as a solid object.
     """
     im = blank()
-    lea = (107, 74, 47, 255)
-    lea_d = (74, 50, 31, 255)
-    lea_dd = (48, 32, 19, 255)
-    lea_l = (138, 102, 66, 255)
-    lea_ll = (166, 128, 88, 255)
-    sole = (53, 48, 43, 255)
-    sole_d = (34, 31, 28, 255)
-    welt = (122, 108, 92, 255)
-    lace = (216, 203, 168, 255)
-    lace_d = (150, 138, 108, 255)
-    algae = (79, 122, 62, 255)
-    algae_l = (112, 156, 86, 255)
-    rust = (126, 76, 42, 255)
-    dark = (22, 15, 9, 255)
 
-    rng = random.Random(0xB007)
+    # . nothing   L highlight  l light    m leather  d dark    D darkest
+    # w welt      s sole       S sole dk  c lace     C lace dk e brass
+    # k hole      a weed       A weed lt
+    INK = {
+        "L": (166, 128, 88, 255),
+        "l": (138, 102, 66, 255),
+        "m": (107, 74, 47, 255),
+        "d": (74, 50, 31, 255),
+        "D": (48, 32, 19, 255),
+        "w": (122, 108, 92, 255),
+        "s": (53, 48, 43, 255),
+        "S": (34, 31, 28, 255),
+        "c": (216, 203, 168, 255),
+        "C": (150, 138, 108, 255),
+        "e": (198, 160, 72, 255),
+        "k": (22, 15, 9, 255),
+        "a": (79, 122, 62, 255),
+        "A": (112, 156, 86, 255),
+    }
 
-    TOP, CUFF, UPPER, WELT_ROW, SOLE_ROW = 6, 7, (8, 9), 10, 11
+    # Six rows, top of the cuff first, laid out at rows 6..11 of the leg.
+    ART = {
+        # the shin and instep: tongue, eyelets, laces crossing
+        "front": ["LlLL",
+                  "eDDe",
+                  "mcCm",
+                  "lCcl",
+                  "wDwa",
+                  "SssS"],
+        # the heel: a pull tab at the top and the seam below it
+        "back":  ["lLll",
+                  "dDDd",
+                  "mDDm",
+                  "mDdm",
+                  "awDw",
+                  "sSSs"],
+        # the outer side: a strap with a buckle, and a split in the upper
+        "right": ["LlLL",
+                  "lllm",
+                  "mLem",
+                  "mmkm",
+                  "wDwA",
+                  "sSss"],
+        # the inner side: plain, and darker for being out of the light
+        "left":  ["lmll",
+                  "dmmd",
+                  "mmdm",
+                  "mdmm",
+                  "awwD",
+                  "sSss"],
+    }
+    TINT = {"right": 1.14, "front": 1.04, "left": 0.84, "back": 0.90}
+    TOP = 6
 
-    for key in ("right", "front", "left", "back"):
+    for key, rows in ART.items():
         f = LEG[key]
-        w = f[2] - f[0]
-        for ry in range(TOP, 12):
-            for rx in range(0, w + 1):
-                if ry == TOP:
-                    c = lea_ll                       # the cuff, catching light
-                elif ry == CUFF:
-                    c = lea_d                        # the fold under it
-                elif ry <= UPPER[1]:
-                    c = lea
-                elif ry == WELT_ROW:
-                    c = welt
-                else:
-                    c = sole
-                put(im, f[0] + rx, f[1] + ry, c)
-
-        # Lighting: the outer faces catch the light, the inner ones do not.
-        tint = {"right": 1.14, "front": 1.04, "left": 0.84, "back": 0.90}[key]
-        for ry in range(TOP, 12):
-            for rx in range(0, w + 1):
-                p = im.getpixel((f[0] + rx, f[1] + ry))
-                if p[3]:
-                    put(im, f[0] + rx, f[1] + ry, shade(p, tint))
-
-        # The welt, where the sole is stitched on, with the stitches showing.
-        for rx in range(0, w + 1, 2):
-            put(im, f[0] + rx, f[1] + WELT_ROW, shade(lea_dd, tint))
-        # The sole's lower edge is darkest.
-        for rx in range(0, w + 1):
-            put(im, f[0] + rx, f[1] + SOLE_ROW, sole_d)
-
-        # Scuffing and water blotches, dense near the bottom.
-        for ry in range(TOP, WELT_ROW + 1):
-            for rx in range(0, w + 1):
-                if ry <= CUFF and rng.random() < 0.20:
-                    over(im, f[0] + rx, f[1] + ry,
-                         (lea_dd[0], lea_dd[1], lea_dd[2], 90))
-                elif rng.random() < 0.16:
-                    over(im, f[0] + rx, f[1] + ry, (rust[0], rust[1], rust[2], 80))
-                elif rng.random() < 0.12:
-                    over(im, f[0] + rx, f[1] + ry,
-                         (lea_ll[0], lea_ll[1], lea_ll[2], 70))
-        # Weed caught in the welt.
-        for rx in range(0, w + 1):
-            if rng.random() < 0.45:
-                over(im, f[0] + rx, f[1] + WELT_ROW - 1,
-                     (algae[0], algae[1], algae[2], 150))
-            if rng.random() < 0.30:
-                over(im, f[0] + rx, f[1] + WELT_ROW,
-                     (algae_l[0], algae_l[1], algae_l[2], 120))
-
-    # --- the laces, across the instep
-    f = LEG["front"]
-    face_box(im, f, 1, CUFF, 2, UPPER[1], shade(lea_dd, 1.05))   # the tongue
-    put(im, f[0] + 1, f[1] + CUFF, lace)
-    put(im, f[0] + 2, f[1] + CUFF, lace_d)
-    put(im, f[0] + 1, f[1] + UPPER[0], lace_d)
-    put(im, f[0] + 2, f[1] + UPPER[0], lace)
-    put(im, f[0] + 1, f[1] + UPPER[1], lace)
-    put(im, f[0] + 2, f[1] + UPPER[1], lace_d)
-    put(im, f[0] + 0, f[1] + TOP, (168, 150, 120, 255))          # eyelets
-    put(im, f[0] + 3, f[1] + TOP, (168, 150, 120, 255))
-    # a loose lace end flopping over the welt
-    put(im, f[0] + 3, f[1] + WELT_ROW, lace_d)
-
-    # --- a split on the outside, showing the dark inside of the boot
-    f = LEG["right"]
-    put(im, f[0] + 1, f[1] + UPPER[0], dark)
-    put(im, f[0] + 2, f[1] + UPPER[0], dark)
-    put(im, f[0] + 2, f[1] + UPPER[1], dark)
-    put(im, f[0] + 1, f[1] + CUFF, shade(lea_ll, 1.1))           # lip of the tear
-    put(im, f[0] + 3, f[1] + UPPER[1], shade(lea_ll, 1.1))
-
-    # --- the heel seam up the back
-    f = LEG["back"]
-    for ry in range(TOP, WELT_ROW):
-        put(im, f[0] + 1, f[1] + ry, lea_dd)
-        put(im, f[0] + 2, f[1] + ry, shade(lea_l, 0.95))
+        for ry, row in enumerate(rows):
+            for rx, ch in enumerate(row):
+                if ch == ".":
+                    continue
+                c = INK[ch]
+                # Weed and the sole keep their own colour; the leather is
+                # lit by which way the face points.
+                if ch not in ("a", "A", "s", "S"):
+                    c = shade(c, TINT[key])
+                put(im, f[0] + rx, f[1] + TOP + ry, c)
 
     # --- the sole, seen from below: a worn tread
     #
     # Lifted well above the colour of the sole's SIDES. A sole lit the same
-    # as the shaft disappears into it, and this face is only ever seen
+    # as the upper disappears into it, and this face is only ever seen
     # against the ground, so it wants to be the lightest thing on the boot.
     tread = (118, 104, 90, 255)
     f = LEG["bottom"]
-    face_box(im, f, 0, 0, 3, 3, tread)
     for ry in range(0, 4):
         for rx in range(0, 4):
             c = shade(tread, 0.70) if (rx + ry) % 2 == 0 else tread
@@ -678,11 +654,20 @@ def main():
                            layer, "catch")
         os.makedirs(out, exist_ok=True)
         for name, fn in table.items():
-            # Halved and doubled back, so a texel is a 2x2 block and these
-            # match the grain of everything else.
+            # Saved at full resolution.
+            #
+            # These used to be halved and blown straight back up, so that
+            # a texel covered a 2x2 block - a "coarser grain" that in
+            # practice threw away three pixels in every four. A leg face
+            # is four wide and the boot occupies six of its rows, so what
+            # reached the game was a boot drawn in two pixels by three.
+            # That is the whole of the complaint that the boots looked
+            # like sixteen pixels: they very nearly were.
+            #
+            # 64x32 IS the coarse grain. It is the same grid a player skin
+            # is drawn on, which is the rule everywhere else here, and
+            # halving it again is not style, it is loss.
             im = fn()
-            w, h = im.size
-            im = im.resize((w // 2, h // 2), Image.NEAREST)                    .resize((w, h), Image.NEAREST)
             im.save(os.path.join(out, name + ".png"))
             # The asset the item's equippable component names. One layer
             # each: these are accessories, not armour, so there is no baby
