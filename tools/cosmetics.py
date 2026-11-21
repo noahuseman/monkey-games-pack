@@ -545,9 +545,17 @@ def held_shark_fin():
     # is symmetric across x, so 180 degrees about Y swaps near for far
     # and 180 about X does that and top for bottom as well. Both are
     # rotX and rotY on the placement, live.
-    blade = [(4, 6, 4, 15), (6, 8, 4, 15), (8, 10, 5, 14),
-             (10, 12, 6, 14), (12, 14, 8, 13), (14, 16, 10, 13)]
-    butt = [(4, 6, 1, 5), (6, 8, 2, 6), (8, 10, 3, 7)]
+    # Written root-first: index 0 is the slice against the back, and each
+    # one after it is a step further away. The deep end of the blade and
+    # the thickening both belong AT the back - that is the edge the fin
+    # is attached by - and it narrows and climbs going away, finishing
+    # as a short stub high and behind.
+    #
+    # Mirrored in place rather than re-authored, so the bounding box is
+    # unchanged and the placement numbers still mean what they did.
+    blade = [(14, 16, 4, 15), (12, 14, 4, 15), (10, 12, 5, 14),
+             (8, 10, 6, 14), (6, 8, 8, 13), (4, 6, 10, 13)]
+    butt = [(14, 16, 1, 5), (12, 14, 2, 6), (10, 12, 3, 7)]
     out = []
     for n, (z0, z1, y0, y1) in enumerate(butt):
         out.append(Box((6, y0, z0), (10, y1, z1),
