@@ -547,19 +547,19 @@ def held_shark_fin():
     # solid they form together, so neither face is ever reachable by a
     # ray and there is nothing to z-fight.
     #
-    # Turned round on Y, and the band stays with the join.
+    # Deep against the back, tipping DOWN as it goes away.
     #
-    # A plain 180 about Y would have taken the thickening with it, out to
-    # the far end where it is a lump rather than a root. The silhouette
-    # is what turns; the band belongs where the fin meets the back
-    # whichever way the blade points, so it is written against the root
-    # slices rather than against particular numbers.
+    # The bottom edge runs almost level out from the small of the back
+    # and the top edge falls steadily, so the point finishes low and
+    # behind rather than raked up over the shoulder.
     #
-    # Still root-first: index 0 is the slice touching the back, which is
-    # now the narrow high end, and the blade broadens going away.
-    slices = [(14, 16, 10, 13, (10, 13)), (12, 14, 8, 13, (9, 12)),
-              (10, 12, 6, 14, None), (8, 10, 3, 14, None),
-              (6, 8, 2, 15, None), (4, 6, 1, 15, None)]
+    # Root-first: index 0 is the slice touching the back. The band is
+    # written against the root slices rather than against particular
+    # numbers, so it stays at the join if the blade is ever turned
+    # again.
+    slices = [(14, 16, 1, 15, (5, 11)), (12, 14, 1, 14, (6, 10)),
+              (10, 12, 2, 13, None), (8, 10, 2, 10, None),
+              (6, 8, 3, 8, None), (4, 6, 3, 6, None)]
     out = []
     for n, (z0, z1, y0, y1, thick) in enumerate(slices):
         skin = coat((112 + 7 * n, 124 + 7 * n, 136 + 7 * n, 255),
