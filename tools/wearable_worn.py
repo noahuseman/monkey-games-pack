@@ -601,13 +601,18 @@ def lily_pad():
     lands on the same side of the pad whether you are looking at the top of
     it or the bottom.
     """
-    im = Image.new("RGBA", (SHEET, 32), (0, 0, 0, 0))
+    # One texel per model unit, like every other piece: the pad spans 24
+    # units, so each half of the sheet is 24 texels and the whole thing is
+    # 48x24. The uv formulas do not change - a uv is a fraction of the
+    # image - only the density does.
+    N = int(PAD_HI - PAD_LO)
+    im = Image.new("RGBA", (N * 2, N), (0, 0, 0, 0))
     span = PAD_HI - PAD_LO
-    for ox, under in ((0, False), (32, True)):
-        for py in range(32):
-            for px in range(32):
-                wx = PAD_LO + (px + 0.5) * span / 32.0
-                t = (py + 0.5) * span / 32.0
+    for ox, under in ((0, False), (N, True)):
+        for py in range(N):
+            for px in range(N):
+                wx = PAD_LO + (px + 0.5) * span / N
+                t = (py + 0.5) * span / N
                 wz = (PAD_HI - t) if under else (PAD_LO + t)
                 c = _pad_colour(wx, wz, under)
                 if c is not None:

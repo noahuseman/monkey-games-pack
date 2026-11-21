@@ -391,10 +391,11 @@ def held_boot():
             "elements": els}
 
 
+# The boot is not here: it is drawn by its armour layer, which bends with
+# the leg. See docs/cosmetics.md.
 HELD = {
     "phantom_lantern": held_lantern,
     "sunken_treasure_chest": held_chest,
-    "old_boot": held_boot,
 }
 
 # ---------------------------------------------------------------------- output
