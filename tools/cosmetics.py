@@ -547,10 +547,19 @@ def held_shark_fin():
     # solid they form together, so neither face is ever reachable by a
     # ray and there is nothing to z-fight.
     #
-    # Written root-first: index 0 is the slice touching the back.
-    slices = [(14, 16, 1, 15, (5, 11)), (12, 14, 2, 15, (6, 10)),
-              (10, 12, 3, 14, None), (8, 10, 6, 14, None),
-              (6, 8, 8, 13, None), (4, 6, 10, 13, None)]
+    # Turned round on Y, and the band stays with the join.
+    #
+    # A plain 180 about Y would have taken the thickening with it, out to
+    # the far end where it is a lump rather than a root. The silhouette
+    # is what turns; the band belongs where the fin meets the back
+    # whichever way the blade points, so it is written against the root
+    # slices rather than against particular numbers.
+    #
+    # Still root-first: index 0 is the slice touching the back, which is
+    # now the narrow high end, and the blade broadens going away.
+    slices = [(14, 16, 10, 13, (10, 13)), (12, 14, 8, 13, (9, 12)),
+              (10, 12, 6, 14, None), (8, 10, 3, 14, None),
+              (6, 8, 2, 15, None), (4, 6, 1, 15, None)]
     out = []
     for n, (z0, z1, y0, y1, thick) in enumerate(slices):
         skin = coat((112 + 7 * n, 124 + 7 * n, 136 + 7 * n, 255),
@@ -559,11 +568,13 @@ def held_shark_fin():
             out.append(Box((7, y0, z0), (9, y1, z1), skin, "fin%d" % n))
             continue
         t0, t1 = thick
-        out.append(Box((7, y0, z0), (9, t0, z1), skin, "fin%dl" % n))
+        if t0 > y0:
+            out.append(Box((7, y0, z0), (9, t0, z1), skin, "fin%dl" % n))
         out.append(Box((6, t0, z0), (10, t1, z1),
                        coat((96 + 8 * n, 108 + 8 * n, 120 + 8 * n, 255),
                             grey, 2 + n), "fin%dm" % n))
-        out.append(Box((7, t1, z0), (9, y1, z1), skin, "fin%du" % n))
+        if y1 > t1:
+            out.append(Box((7, t1, z0), (9, y1, z1), skin, "fin%du" % n))
     return out
 
 

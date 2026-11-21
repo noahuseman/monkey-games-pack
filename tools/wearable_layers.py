@@ -443,56 +443,63 @@ def old_boot():
     """
     im = blank()
 
-    # . nothing   L highlight  l light    m leather  d dark    D darkest
-    # w welt      s sole       S sole dk  c lace     C lace dk e brass
-    # k hole      a weed       A weed lt
+    # One family of colours and nothing outside it: leather browns,
+    # moss greens, and the greys of the sole and the buckle. The cream
+    # laces and brass buckle that were here before were the only two
+    # hues on the boot and they pulled the eye straight to them, which
+    # at four pixels across is the whole boot. Drab laces and an iron
+    # buckle sit in the same family, so the boot reads as one object
+    # that has been in a pond rather than as a brown shape with two
+    # bright marks on it.
     INK = {
-        "L": (166, 128, 88, 255),
-        "l": (138, 102, 66, 255),
-        "m": (107, 74, 47, 255),
-        "d": (74, 50, 31, 255),
-        "D": (48, 32, 19, 255),
-        "w": (122, 108, 92, 255),
-        "s": (53, 48, 43, 255),
-        "S": (34, 31, 28, 255),
-        "c": (216, 203, 168, 255),
-        "C": (150, 138, 108, 255),
-        "e": (198, 160, 72, 255),
-        "k": (22, 15, 9, 255),
-        "a": (79, 122, 62, 255),
-        "A": (112, 156, 86, 255),
+        "L": (150, 118, 82, 255),    # leather, lit
+        "l": (124, 96, 66, 255),
+        "m": (100, 76, 52, 255),
+        "d": (76, 56, 38, 255),
+        "D": (52, 38, 26, 255),      # leather, deepest
+        "c": (118, 104, 76, 255),    # lace
+        "C": (88, 76, 54, 255),
+        "g": (92, 118, 64, 255),     # moss
+        "G": (122, 146, 86, 255),
+        "n": (68, 90, 50, 255),
+        "i": (138, 142, 142, 255),   # buckle
+        "I": (94, 98, 100, 255),
+        "w": (108, 100, 86, 255),    # welt
+        "s": (72, 70, 66, 255),      # sole
+        "S": (48, 46, 44, 255),
     }
 
     # Six rows, top of the cuff first, laid out at rows 6..11 of the leg.
+    # Moss gathers low, where a boot stood in the water.
     ART = {
-        # the shin and instep: tongue, eyelets, laces crossing
+        # the shin and instep: tongue, and laces crossing it
         "front": ["LlLL",
-                  "eDDe",
+                  "dDDd",
                   "mcCm",
                   "lCcl",
-                  "wDwa",
-                  "SssS"],
-        # the heel: a pull tab at the top and the seam below it
+                  "wgDw",
+                  "SsgS"],
+        # the heel: a pull tab at the top, the seam below it
         "back":  ["lLll",
                   "dDDd",
                   "mDDm",
                   "mDdm",
-                  "awDw",
-                  "sSSs"],
-        # the outer side: a strap with a buckle, and a split in the upper
+                  "gwDw",
+                  "sSgS"],
+        # the outer side: a strap with an iron buckle, weed at the welt
         "right": ["LlLL",
                   "lllm",
-                  "mLem",
-                  "mmkm",
-                  "wDwA",
-                  "sSss"],
-        # the inner side: plain, and darker for being out of the light
+                  "miIm",
+                  "mmdm",
+                  "wGDw",
+                  "ssgS"],
+        # the inner side: plainer, and darker for being out of the light
         "left":  ["lmll",
                   "dmmd",
-                  "mmdm",
+                  "mndm",
                   "mdmm",
-                  "awwD",
-                  "sSss"],
+                  "wwgD",
+                  "sSsg"],
     }
     TINT = {"right": 1.14, "front": 1.04, "left": 0.84, "back": 0.90}
     TOP = 6
@@ -504,9 +511,9 @@ def old_boot():
                 if ch == ".":
                     continue
                 c = INK[ch]
-                # Weed and the sole keep their own colour; the leather is
-                # lit by which way the face points.
-                if ch not in ("a", "A", "s", "S"):
+                # The sole reads flat and dark whichever way it faces;
+                # everything above it is lit by which way its face points.
+                if ch not in ("s", "S"):
                     c = shade(c, TINT[key])
                 put(im, f[0] + rx, f[1] + TOP + ry, c)
 
@@ -515,7 +522,7 @@ def old_boot():
     # Lifted well above the colour of the sole's SIDES. A sole lit the same
     # as the upper disappears into it, and this face is only ever seen
     # against the ground, so it wants to be the lightest thing on the boot.
-    tread = (118, 104, 90, 255)
+    tread = (96, 92, 86, 255)
     f = LEG["bottom"]
     for ry in range(0, 4):
         for rx in range(0, 4):
