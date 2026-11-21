@@ -119,6 +119,69 @@ def speckled(colour, spot, top=None, bottom=None):
 
 
 
+def grain(base, amount=8, alpha=0, seed=0):
+    """
+    Dozens of nearly identical shades over a face that was one colour.
+
+    The pieces were built out of a handful of flat tones, and a handful of
+    flat tones reads as plastic: a brass plate is one brass, repeated.
+    Minecraft's own art almost never does that - nearly every pixel sits a
+    point or two off its neighbour and the eye averages them into a
+    surface. This jitters each channel by a hashed few points, so a face
+    carries a lot of colours without any single mark large enough to count
+    as DETAIL, which is the thing to avoid: the helmet has been too busy
+    once already, and the answer to that was never fewer colours, it was
+    fewer marks.
+    """
+    def paint(px, w, h, face):
+        base(px, w, h, face)
+        key = (w * 2654435761) ^ (h * 40503) ^ (seed * 2246822519)
+        n = 2 * amount + 1
+        na = 2 * alpha + 1
+        for y in range(h):
+            for x in range(w):
+                c = px[x, y]
+                if c[3] == 0:
+                    continue
+                hsh = ((x + 1) * 374761393) ^ ((y + 1) * 668265263) ^ key
+                hsh = ((hsh ^ (hsh >> 13)) * 1274126177) & 0x7FFFFFFF
+                a = c[3]
+                if alpha and a < 255:
+                    a = max(150, min(250, a + (hsh >> 25) % na - alpha))
+                px[x, y] = (max(0, min(255, c[0] + (hsh >> 3) % n - amount)),
+                            max(0, min(255, c[1] + (hsh >> 11) % n - amount)),
+                            max(0, min(255, c[2] + (hsh >> 19) % n - amount)),
+                            a)
+    return paint
+
+
+def flecked(base, spot, mod=11, seed=1):
+    """A second, sparser scatter, so weathering is not all one colour."""
+    def paint(px, w, h, face):
+        base(px, w, h, face)
+        for y in range(h):
+            for x in range(w):
+                if px[x, y][3] == 0:
+                    continue
+                hsh = (((x + 3) * 2246822519) ^ ((y + 5) * 3266489917)
+                       ^ ((seed * 374761393) ^ w))
+                if ((hsh ^ (hsh >> 15)) & 0x7FFFFFFF) % mod == 0:
+                    px[x, y] = spot
+    return paint
+
+
+def locked(base, dark, glint):
+    """A keyhole, on the one face anybody ever sees."""
+    def paint(px, w, h, face):
+        base(px, w, h, face)
+        if face != "north" or w < 4 or h < 5:
+            return
+        cx, cy = w // 2 - 1, h // 2 - 1
+        for sx, sy in ((0, 0), (1, 0), (0, 1), (1, 1), (0, 2)):
+            px[cx + sx, cy + sy] = dark
+        px[cx, cy - 1] = glint
+    return paint
+
 # ------------------------------------------- marks that survive at skin scale
 #
 # A player skin gives a head 8 pixels across, and that is the budget here:
@@ -166,18 +229,37 @@ def planks(colour, groove, light):
 
 
 def cracked(colour, crack, pale):
-    """Ice: a pale top, a couple of fractures, nothing else."""
+    """
+    Ice: a pale top and a few fractures that wander.
+
+    The fractures used to step one across for every one down, which makes
+    a dashed forty-five degree line - three of them on a face read as
+    hatching, not as broken ice. These drift by a hash instead, so they
+    lean without ever being straight, and each one lays a paler pixel
+    along one side every other step. That highlight is doing two jobs: a
+    break in ice catches light on one lip, and it quietly doubles the
+    number of tones on a face that would otherwise be two.
+    """
     def paint(px, w, h, face):
         for y in range(h):
             for x in range(w):
                 px[x, y] = pale if y < max(1, h // 4) else colour
-        # Two fractures, placed from the face size so they never move.
-        for i, (sx, sy) in enumerate(((w // 3, h // 3), (2 * w // 3, h // 2))):
-            x, y = sx, sy
-            for step in range(min(w, h) // 2 + 1):
-                if 0 <= x < w and 0 <= y < h:
-                    px[x, y] = crack
-                x += 1 if (step + i) % 2 else 0
+        if w < 3 or h < 3:
+            return
+        for i, sx in enumerate((w // 4, w // 2, (3 * w) // 4)):
+            x, y = sx, (i * h) // 5
+            for step in range((2 * h) // 3 + i):
+                if not (0 <= x < w and 0 <= y < h):
+                    break
+                px[x, y] = crack
+                if step % 2 and x + 1 < w and px[x + 1, y] != crack:
+                    px[x + 1, y] = pale
+                hsh = ((x + 11) * 2654435761) ^ ((y + 7) * 2246822519) ^ (i * 97)
+                drift = ((hsh ^ (hsh >> 12)) & 0x7FFFFFFF) % 5
+                if drift == 0 and x > 0:
+                    x -= 1
+                elif drift >= 3 and x + 1 < w:
+                    x += 1
                 y += 1
     return paint
 
@@ -223,40 +305,65 @@ def diving_helmet():
     brass_l = (214, 166, 92, 255)
     brass_d = (116, 80, 34, 255)
     patina = (92, 142, 112, 255)
+    patina_l = (118, 166, 132, 255)
+    copper = (158, 104, 62, 255)
     iron = (150, 150, 158, 255)
     glass = (46, 112, 130, 255)
     glass_l = (150, 212, 222, 255)
     rubber = (52, 52, 58, 255)
 
-    shell = rivets(speckled(brass, patina, top=brass_l, bottom=brass_d), iron)
-    plate = rivets(flat(brass_l, top=(238, 200, 140, 255), bottom=brass_d), iron)
+    shell = grain(rivets(flecked(
+        speckled(brass, patina, top=brass_l, bottom=brass_d),
+        patina_l, 17, 3), iron), 10)
+    plate = grain(rivets(flecked(
+        flat(brass_l, top=(238, 200, 140, 255), bottom=brass_d),
+        copper, 19, 7), iron), 10)
     return [
         Box((3, 4, 3), (13, 14, 13), shell, "shell"),
-        Box((2, 6, 2), (14, 10, 14),
-            seamed(flat(brass, top=brass_l, bottom=brass_d), brass_d), "bulge"),
+        Box((2, 6, 2), (14, 10, 14), grain(
+            seamed(flat(copper, top=brass_l, bottom=brass_d), brass_d), 10),
+            "bulge"),
         Box((2, 2, 2), (14, 4, 14), plate, "collar"),
-        Box((5, 6, 1), (11, 12, 3), rivets(flat(brass_l), iron, 0), "rim"),
-        Box((6, 7, 0), (10, 11, 1), glowing(glass, iron, glass_l), "glass"),
-        Box((13, 8, 6), (15, 11, 9), glowing(glass, brass_l, glass_l), "port_l"),
-        Box((1, 8, 6), (3, 11, 9), glowing(glass, brass_l, glass_l), "port_r"),
-        Box((6, 10, 13), (10, 13, 15), banded(rubber, (28, 28, 32, 255), 2), "hose"),
-        Box((6, 14, 6), (10, 16, 10), flat(brass_l, bottom=brass_d), "knob"),
+        Box((5, 6, 1), (11, 12, 3),
+            grain(rivets(flat(brass_l), iron, 0), 9), "rim"),
+        Box((6, 7, 0), (10, 11, 1),
+            grain(glowing(glass, iron, glass_l), 11), "glass"),
+        Box((13, 8, 6), (15, 11, 9),
+            grain(glowing(glass, brass_l, glass_l), 11), "port_l"),
+        Box((1, 8, 6), (3, 11, 9),
+            grain(glowing(glass, brass_l, glass_l), 11), "port_r"),
+        Box((6, 10, 13), (10, 13, 15),
+            grain(banded(rubber, (28, 28, 32, 255), 2), 7), "hose"),
+        Box((6, 14, 6), (10, 16, 10),
+            grain(flat(brass_l, bottom=brass_d), 9), "knob"),
     ]
 
 
 def eternal_ice_cube():
-    ice = (142, 206, 232, 255)
-    ice_l = (206, 240, 252, 255)
-    ice_d = (70, 150, 186, 255)
-    white = (238, 250, 255, 255)
-    deep = (46, 108, 142, 255)
+    # Ice you can see into.
+    #
+    # An item model is drawn on the translucent item sheet, so alpha below
+    # 255 really is alpha - the far side of the cube shows faintly through
+    # the near side, which is most of what makes ice read as ice rather
+    # than as blue stone. Nothing here drops below 150: an armour LAYER
+    # cuts hard at 128 and turns anything fainter into a black hole, and
+    # staying well clear of that line means these colours still behave if
+    # a piece is ever moved onto one.
+    A = 196
+    ice = (142, 206, 232, A)
+    ice_l = (206, 240, 252, A + 24)
+    white = (238, 250, 255, 232)
+    deep = (46, 108, 142, 238)
 
-    body = cracked(ice, deep, ice_l)
-    shard = flat(ice_l, bottom=ice)
-    icicle = flat(ice, bottom=deep)
+    body = grain(cracked(ice, deep, ice_l), 7, alpha=14)
+    shard = grain(flat((206, 240, 252, 214), bottom=(142, 206, 232, 204)),
+                  7, alpha=12)
+    icicle = grain(flat((160, 214, 238, 208), bottom=(70, 150, 186, 230)),
+                   7, alpha=12)
     return [
         Box((2, 2, 2), (14, 15, 14), body, "cube"),
-        Box((1, 15, 1), (15, 16, 15), speckled(white, ice_l), "rime"),
+        Box((1, 15, 1), (15, 16, 15),
+            grain(speckled(white, ice_l), 6, alpha=8), "rime"),
         Box((3, 0, 3), (4, 2, 4), icicle, "ic1"),
         Box((11, -1, 3), (12, 2, 4), icicle, "ic2"),
         Box((3, 0, 11), (4, 2, 12), icicle, "ic3"),
@@ -276,17 +383,23 @@ def pink_squid():
     spot = (140, 42, 88, 255)
     dark = (40, 16, 32, 255)
 
-    mantle = speckled(pink, spot, top=pink_l, bottom=pink_d)
-    arm = flat(pink, top=pink_l, bottom=pink_d, edge=pink_d)
-    eye = eyed(pale, dark, (255, 255, 255, 255), pink_d)
+    blush = (238, 128, 174, 255)
+    mantle = grain(flecked(
+        speckled(pink, spot, top=pink_l, bottom=pink_d), blush, 13, 5), 10)
+    arm = grain(flat(pink, top=pink_l, bottom=pink_d, edge=pink_d), 9)
+    eye = grain(eyed(pale, dark, (255, 255, 255, 255), pink_d), 6)
     boxes = [
         Box((3, 4, 3), (13, 14, 13), mantle, "mantle"),
-        Box((4, 14, 4), (12, 17, 12), flat(pink_d, top=pink), "taper"),
-        Box((6, 17, 6), (10, 19, 10), flat(pink_d, top=pink), "tip"),
+        Box((4, 14, 4), (12, 17, 12),
+            grain(flat(pink_d, top=pink), 9), "taper"),
+        Box((6, 17, 6), (10, 19, 10),
+            grain(flat(pink_d, top=pink), 9), "tip"),
         Box((12, 8, 5), (14, 11, 9), eye, "eye_l"),
         Box((2, 8, 5), (4, 11, 9), eye, "eye_r"),
-        Box((13, 11, 5), (15, 13, 11), flat(pale, bottom=pink), "fin_l"),
-        Box((1, 11, 5), (3, 13, 11), flat(pale, bottom=pink), "fin_r"),
+        Box((13, 11, 5), (15, 13, 11),
+            grain(flat(pale, bottom=pink), 8), "fin_l"),
+        Box((1, 11, 5), (3, 13, 11),
+            grain(flat(pale, bottom=pink), 8), "fin_r"),
         Box((7, 3, 2), (9, 5, 4), flat(dark), "beak"),
     ]
     # Eight arms round the rim, at uneven lengths.
@@ -303,13 +416,18 @@ def held_lantern():
     iron_d = (44, 54, 62, 255)
     glow = (150, 232, 248, 255)
     glow_l = (226, 250, 255, 255)
-    cap = flat(iron, top=iron_l, bottom=iron_d)
+    cap = grain(flat(iron, top=iron_l, bottom=iron_d), 8)
+    # Two units wider all round than it was. A lantern six units across
+    # and eleven tall reads as a bottle at hip size; eight across is
+    # squat enough to read as a lantern from across an arena, which is
+    # the only distance it is ever seen from.
     return [
-        Box((5, 2, 5), (11, 4, 11), cap, "foot"),
-        Box((6, 4, 6), (10, 11, 10), glowing(glow, iron, glow_l), "glass"),
-        Box((5, 11, 5), (11, 13, 11), cap, "cap"),
-        Box((7, 13, 7), (9, 15, 9), flat(iron_l), "hook"),
-        Box((7, 15, 7), (9, 16, 9), flat(iron_l), "ring"),
+        Box((4, 2, 4), (12, 4, 12), cap, "foot"),
+        Box((5, 4, 5), (11, 11, 11),
+            grain(glowing(glow, iron, glow_l), 9), "glass"),
+        Box((4, 11, 4), (12, 13, 12), cap, "cap"),
+        Box((7, 13, 7), (9, 15, 9), grain(flat(iron_l), 8), "hook"),
+        Box((7, 15, 7), (9, 16, 9), grain(flat(iron_l), 8), "ring"),
     ]
 
 
@@ -317,22 +435,115 @@ def held_chest():
     wood = (108, 76, 42, 255)
     wood_l = (140, 102, 60, 255)
     wood_d = (72, 48, 24, 255)
-    moss = (70, 110, 62, 255)
     gold = (214, 165, 43, 255)
+    gold_d = (150, 110, 20, 255)
+    gold_l = (248, 214, 112, 255)
+    iron = (124, 130, 138, 255)
+    iron_l = (170, 176, 184, 255)
+    iron_d = (68, 74, 82, 255)
     leather = (64, 46, 30, 255)
-    return [
+    dark = (26, 20, 14, 255)
+
+    band = grain(flat(iron, top=iron_l, bottom=iron_d), 9)
+    # Banding, and why it is geometry rather than paint.
+    #
+    # Painted on, a strap is a stripe: it lies in the same plane as the
+    # boards and the eye reads it as a stain. Standing a unit proud of
+    # the lid it catches a different face shade on every side and throws
+    # a silhouette, which is the difference between a crate with lines on
+    # it and a chest with iron round it.
+    #
+    # The straps stand 1 unit out and the waist band 2, so the band
+    # passes OVER them with no two faces sharing a plane. Coplanar faces
+    # are what z-fighting is, and the way to not have it is to not write
+    # it, not to nudge things by a hundredth afterwards.
+    out = [
         # The lid is painted markedly lighter than the base, with a dark
         # seam under it. Planked identically they read as one crate, and a
         # crate is not a chest - the lid line is the whole silhouette.
-        Box((3, 2, 4), (13, 9, 12),
-            seamed(planks(wood, wood_d, wood_l), wood_d, (0.0,)), "base"),
-        Box((3, 9, 4), (13, 13, 12),
+        Box((3, 2, 4), (13, 9, 12), grain(
+            seamed(planks(wood, wood_d, wood_l), wood_d, (0.0,)), 8), "base"),
+        Box((3, 9, 4), (13, 13, 12), grain(
             planks((168, 128, 80, 255), (120, 88, 50, 255),
-                   (196, 156, 104, 255)), "lid"),
-        Box((7, 8, 3), (9, 11, 4), flat(gold, bottom=(150, 110, 20, 255)), "lock"),
-        Box((4, 2, 12), (6, 13, 13), flat(leather, top=(96, 72, 48, 255)), "strap_l"),
-        Box((10, 2, 12), (12, 13, 13), flat(leather, top=(96, 72, 48, 255)), "strap_r"),
+                   (196, 156, 104, 255)), 8), "lid"),
     ]
+    for tag, x0 in (("l", 4), ("r", 10)):
+        out += [
+            Box((x0, 2, 3), (x0 + 2, 13, 4), band, "strap_f_" + tag),
+            Box((x0, 13, 3), (x0 + 2, 14, 13), band, "strap_t_" + tag),
+            Box((x0, 2, 12), (x0 + 2, 13, 13), band, "strap_b_" + tag),
+        ]
+    out += [
+        Box((3, 8, 2), (13, 10, 4), band, "waist_f"),
+        Box((3, 8, 12), (13, 10, 14), band, "waist_b"),
+        Box((2, 8, 4), (3, 10, 12), band, "waist_l"),
+        Box((13, 8, 4), (14, 10, 12), band, "waist_r"),
+        # The lock sits in the waist band, not on it, for the same reason.
+        Box((6, 6, 1), (10, 11, 3),
+            grain(locked(flat(gold, top=gold_l, bottom=gold_d), dark, gold_l),
+                  7), "lock"),
+        Box((4, 2, 13), (6, 13, 14),
+            grain(flat(leather, top=(96, 72, 48, 255)), 7), "sling_l"),
+        Box((10, 2, 13), (12, 13, 14),
+            grain(flat(leather, top=(96, 72, 48, 255)), 7), "sling_r"),
+    ]
+    return out
+
+
+def held_shark_fin():
+    """
+    A fin that grows out of a back, built rather than extruded.
+
+    It used to be the inventory sprite, which `item/generated` extrudes
+    one unit thick - about half a pixel once the display has scaled it,
+    so from the side it was a razor blade, and nothing about its weight
+    on the back could be controlled because the silhouette came from an
+    icon drawn to be looked at face-on.
+
+    Built as boxes it gets a real root four units thick, tapering to two,
+    and it is centred on x = 8 by construction, which the sprite never
+    was: the fin in that icon leans, so the extrusion's mass sat right of
+    the middle however carefully the display was centred.
+
+    Authored with +Z towards the player, so the root plane is the face
+    that meets the spine and everything else reaches backwards and up.
+    """
+    grey = (108, 120, 132, 255)
+    grey_l = (146, 158, 170, 255)
+    grey_d = (70, 80, 92, 255)
+    pale = (176, 186, 196, 255)
+    slate = (92, 104, 118, 255)
+
+    def coat(c, t, seed):
+        return grain(flecked(flat(c, top=t, bottom=grey_d), slate, 15, seed), 9)
+
+    # Thin slices, and thinner the higher it goes.
+    #
+    # The first attempt was three fat boxes and it read as a stepped
+    # brick, because a shape made of three steps is not a curve, it is
+    # three corners. This is the same silhouette cut finer: the bottom
+    # edge climbs and the top edge falls over six slices, so the blade
+    # sweeps instead of stepping, and the steps that remain are small
+    # enough to pass for the stepping the game does everywhere else.
+    #
+    # It also thins with height. The root is four units thick where it
+    # meets the back - three pixels once the display has scaled it, which
+    # is what a fin needs to stop being a razor blade - and two above the
+    # waist of the blade, because a fin that is equally fat at the tip is
+    # a shark-shaped doorstop.
+    root = [(14, 16, 1), (12, 14, 2), (10, 12, 3)]
+    blade = [(14, 16, 4, 15), (12, 14, 4, 15), (10, 12, 5, 14),
+             (8, 10, 6, 14), (6, 8, 8, 13), (4, 6, 10, 13)]
+    out = []
+    for n, (z0, z1, y0) in enumerate(root):
+        out.append(Box((6, y0, z0), (10, 5 + n, z1),
+                       coat((96 + 6 * n, 108 + 6 * n, 120 + 6 * n, 255),
+                            grey, 2 + n), "root%d" % n))
+    for n, (z0, z1, y0, y1) in enumerate(blade):
+        out.append(Box((7, y0, z0), (9, y1, z1),
+                       coat((112 + 7 * n, 124 + 7 * n, 136 + 7 * n, 255),
+                            pale if n > 2 else grey_l, 9 + n), "blade%d" % n))
+    return out
 
 
 PIECES = {
@@ -341,6 +552,7 @@ PIECES = {
     "pink_squid": (pink_squid, True),
     "held/phantom_lantern": (held_lantern, False),
     "held/sunken_treasure_chest": (held_chest, False),
+    "held/shark_fin": (held_shark_fin, False),
 }
 
 
@@ -552,6 +764,18 @@ def main():
         with open(mp, "w", newline="\n") as f:
             json.dump(model, f, indent=2)
             f.write("\n")
+
+        # A carried piece also needs the item definition that points at
+        # the model, since nothing else writes one for a piece that was
+        # never a head piece. Head pieces keep theirs in wearable_models.
+        if parts[0] == "held":
+            ip = os.path.join(a, "items", "catch", *parts) + ".json"
+            os.makedirs(os.path.dirname(ip), exist_ok=True)
+            with open(ip, "w", newline="\n") as f:
+                json.dump({"model": {
+                    "type": "minecraft:model",
+                    "model": NS + ":item/catch/worn/" + name}}, f, indent=2)
+                f.write("\n")
         print("%-30s %2d boxes  %dx%d" % (name, len(boxes), sheet[0], sheet[1]))
 
     disc, fim, model = lily_pad(root)

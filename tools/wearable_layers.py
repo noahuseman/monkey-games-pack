@@ -422,6 +422,17 @@ def shark_fin():
 # the shin - the model has no foot box, so that is where the lacing reads.
 
 def old_boot():
+    """
+    A boot that stops at the ankle.
+
+    It used to paint rows 2 to 11 of the leg cube - ten of its twelve
+    rows - which is not a boot, it is a legging in leather, and that is
+    exactly what it looked like in game: both legs brown from the hip
+    down. Vanilla's own humanoid layer was the thing to read, and iron
+    boots occupy rows 6 to 11 and nothing above, so this does too. The
+    six rows left are the whole boot: a cuff, two of upper, the welt and
+    the sole, which is as much boot as a 16-pixel leg can hold.
+    """
     im = blank()
     lea = (107, 74, 47, 255)
     lea_d = (74, 50, 31, 255)
@@ -440,19 +451,18 @@ def old_boot():
 
     rng = random.Random(0xB007)
 
-    # TOP of the shaft is row 2 of the leg cube; the sole is rows 10-11.
-    SHAFT, FOOT, WELT_ROW, SOLE_ROWS = (2, 5), (6, 9), 10, (10, 11)
+    TOP, CUFF, UPPER, WELT_ROW, SOLE_ROW = 6, 7, (8, 9), 10, 11
 
     for key in ("right", "front", "left", "back"):
         f = LEG[key]
         w = f[2] - f[0]
-        for ry in range(2, 12):
+        for ry in range(TOP, 12):
             for rx in range(0, w + 1):
-                if ry <= SHAFT[1]:
-                    c = lea_l if ry == 2 else lea
-                    if ry == 4:
-                        c = lea_d                      # the fold
-                elif ry <= FOOT[1]:
+                if ry == TOP:
+                    c = lea_ll                       # the cuff, catching light
+                elif ry == CUFF:
+                    c = lea_d                        # the fold under it
+                elif ry <= UPPER[1]:
                     c = lea
                 elif ry == WELT_ROW:
                     c = welt
@@ -462,65 +472,64 @@ def old_boot():
 
         # Lighting: the outer faces catch the light, the inner ones do not.
         tint = {"right": 1.14, "front": 1.04, "left": 0.84, "back": 0.90}[key]
-        for ry in range(2, 12):
+        for ry in range(TOP, 12):
             for rx in range(0, w + 1):
                 p = im.getpixel((f[0] + rx, f[1] + ry))
                 if p[3]:
                     put(im, f[0] + rx, f[1] + ry, shade(p, tint))
 
-        # The top edge of the shaft, and a shadow in the opening.
-        for rx in range(0, w + 1):
-            put(im, f[0] + rx, f[1] + 2, shade(lea_ll, tint))
-            put(im, f[0] + rx, f[1] + 3, shade(lea_d, tint))
         # The welt, where the sole is stitched on, with the stitches showing.
         for rx in range(0, w + 1, 2):
             put(im, f[0] + rx, f[1] + WELT_ROW, shade(lea_dd, tint))
         # The sole's lower edge is darkest.
         for rx in range(0, w + 1):
-            put(im, f[0] + rx, f[1] + 11, sole_d)
+            put(im, f[0] + rx, f[1] + SOLE_ROW, sole_d)
 
         # Scuffing and water blotches, dense near the bottom.
-        for ry in range(2, 11):
+        for ry in range(TOP, WELT_ROW + 1):
             for rx in range(0, w + 1):
-                if ry <= SHAFT[1] and rng.random() < 0.18:
-                    over(im, f[0] + rx, f[1] + ry, (lea_dd[0], lea_dd[1], lea_dd[2], 90))
-                elif rng.random() < 0.14:
+                if ry <= CUFF and rng.random() < 0.20:
+                    over(im, f[0] + rx, f[1] + ry,
+                         (lea_dd[0], lea_dd[1], lea_dd[2], 90))
+                elif rng.random() < 0.16:
                     over(im, f[0] + rx, f[1] + ry, (rust[0], rust[1], rust[2], 80))
-                elif rng.random() < 0.10:
-                    over(im, f[0] + rx, f[1] + ry, (lea_ll[0], lea_ll[1], lea_ll[2], 70))
+                elif rng.random() < 0.12:
+                    over(im, f[0] + rx, f[1] + ry,
+                         (lea_ll[0], lea_ll[1], lea_ll[2], 70))
         # Weed caught in the welt.
         for rx in range(0, w + 1):
             if rng.random() < 0.45:
-                over(im, f[0] + rx, f[1] + 9, (algae[0], algae[1], algae[2], 150))
+                over(im, f[0] + rx, f[1] + WELT_ROW - 1,
+                     (algae[0], algae[1], algae[2], 150))
             if rng.random() < 0.30:
-                over(im, f[0] + rx, f[1] + 10, (algae_l[0], algae_l[1], algae_l[2], 120))
+                over(im, f[0] + rx, f[1] + WELT_ROW,
+                     (algae_l[0], algae_l[1], algae_l[2], 120))
 
-    # --- the lace panel, on the shin
+    # --- the laces, across the instep
     f = LEG["front"]
-    face_box(im, f, 1, 3, 2, 9, shade(lea_dd, 1.05))     # the tongue
-    for ry in (4, 6, 8):                                  # laces crossing it
-        put(im, f[0] + 1, f[1] + ry, lace)
-        put(im, f[0] + 2, f[1] + ry, lace_d)
-    for ry in (5, 7):
-        put(im, f[0] + 1, f[1] + ry, lace_d)
-        put(im, f[0] + 2, f[1] + ry, lace)
-    put(im, f[0] + 0, f[1] + 3, (168, 150, 120, 255))     # eyelets
-    put(im, f[0] + 3, f[1] + 3, (168, 150, 120, 255))
+    face_box(im, f, 1, CUFF, 2, UPPER[1], shade(lea_dd, 1.05))   # the tongue
+    put(im, f[0] + 1, f[1] + CUFF, lace)
+    put(im, f[0] + 2, f[1] + CUFF, lace_d)
+    put(im, f[0] + 1, f[1] + UPPER[0], lace_d)
+    put(im, f[0] + 2, f[1] + UPPER[0], lace)
+    put(im, f[0] + 1, f[1] + UPPER[1], lace)
+    put(im, f[0] + 2, f[1] + UPPER[1], lace_d)
+    put(im, f[0] + 0, f[1] + TOP, (168, 150, 120, 255))          # eyelets
+    put(im, f[0] + 3, f[1] + TOP, (168, 150, 120, 255))
     # a loose lace end flopping over the welt
-    put(im, f[0] + 3, f[1] + 9, lace)
-    put(im, f[0] + 3, f[1] + 10, lace_d)
+    put(im, f[0] + 3, f[1] + WELT_ROW, lace_d)
 
     # --- a split on the outside, showing the dark inside of the boot
     f = LEG["right"]
-    put(im, f[0] + 1, f[1] + 6, dark)
-    put(im, f[0] + 2, f[1] + 6, dark)
-    put(im, f[0] + 2, f[1] + 7, dark)
-    put(im, f[0] + 1, f[1] + 5, shade(lea_ll, 1.1))       # the lip of the tear
-    put(im, f[0] + 3, f[1] + 7, shade(lea_ll, 1.1))
+    put(im, f[0] + 1, f[1] + UPPER[0], dark)
+    put(im, f[0] + 2, f[1] + UPPER[0], dark)
+    put(im, f[0] + 2, f[1] + UPPER[1], dark)
+    put(im, f[0] + 1, f[1] + CUFF, shade(lea_ll, 1.1))           # lip of the tear
+    put(im, f[0] + 3, f[1] + UPPER[1], shade(lea_ll, 1.1))
 
     # --- the heel seam up the back
     f = LEG["back"]
-    for ry in range(2, 10):
+    for ry in range(TOP, WELT_ROW):
         put(im, f[0] + 1, f[1] + ry, lea_dd)
         put(im, f[0] + 2, f[1] + ry, shade(lea_l, 0.95))
 
@@ -541,7 +550,6 @@ def old_boot():
     put(im, f[0] + 3, f[1] + 3, shade(tread, 1.25))       # and the toe
     put(im, f[0] + 2, f[1] + 3, shade(tread, 1.18))
     return im
-
 
 # ======================================================= 5. the phantom lantern
 #
