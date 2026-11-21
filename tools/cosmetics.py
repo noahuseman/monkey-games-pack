@@ -531,26 +531,32 @@ def held_shark_fin():
     # is what a fin needs to stop being a razor blade - and two above the
     # waist of the blade, because a fin that is equally fat at the tip is
     # a shark-shaped doorstop.
-    # Which edge is the long one.
+    # Which way round, after three goes at it.
     #
-    # Built the other way up first: the long sloping edge along the
-    # BOTTOM and the apex at the top-rear. Worn, that reads as a fin on
-    # backwards, and it is hard to see on paper because the shape is a
-    # triangle either way - the tell is which edge your eye follows out
-    # from the body. The long edge is the top now, running back and down
-    # from the shoulder, and the point finishes low and behind.
-    root = [(14, 16, 15), (12, 14, 14), (10, 12, 13)]
-    blade = [(14, 16, 1, 12), (12, 14, 1, 12), (10, 12, 2, 11),
-             (8, 10, 2, 10), (6, 8, 3, 8), (4, 6, 3, 6)]
+    # The silhouette is a triangle whichever way you build it, so none of
+    # the wrong ones looked wrong on their own - only worn. Written out
+    # as the shape it makes rather than as the shape it came from: the
+    # narrow end meets the back, the blade widens going away from the
+    # player, and the mass finishes low and behind. The two-unit
+    # thickening is at the bottom of the far end, where the weight of the
+    # thing wants to be.
+    #
+    # If it still wants turning, it does not need rebuilding: the model
+    # is symmetric across x, so 180 degrees about Y swaps near for far
+    # and 180 about X does that and top for bottom as well. Both are
+    # rotX and rotY on the placement, live.
+    blade = [(4, 6, 4, 15), (6, 8, 4, 15), (8, 10, 5, 14),
+             (10, 12, 6, 14), (12, 14, 8, 13), (14, 16, 10, 13)]
+    butt = [(4, 6, 1, 5), (6, 8, 2, 6), (8, 10, 3, 7)]
     out = []
-    for n, (z0, z1, y1) in enumerate(root):
-        out.append(Box((6, 11 - n, z0), (10, y1, z1),
+    for n, (z0, z1, y0, y1) in enumerate(butt):
+        out.append(Box((6, y0, z0), (10, y1, z1),
                        coat((96 + 6 * n, 108 + 6 * n, 120 + 6 * n, 255),
-                            grey, 2 + n), "root%d" % n))
+                            grey, 2 + n), "butt%d" % n))
     for n, (z0, z1, y0, y1) in enumerate(blade):
         out.append(Box((7, y0, z0), (9, y1, z1),
                        coat((112 + 7 * n, 124 + 7 * n, 136 + 7 * n, 255),
-                            pale if n > 2 else grey_l, 9 + n), "blade%d" % n))
+                            pale if n < 3 else grey_l, 9 + n), "blade%d" % n))
     return out
 
 
