@@ -531,40 +531,39 @@ def held_shark_fin():
     # is what a fin needs to stop being a razor blade - and two above the
     # waist of the blade, because a fin that is equally fat at the tip is
     # a shark-shaped doorstop.
-    # Which way round, after three goes at it.
+    # Two units thick everywhere, with one thickening in the middle of
+    # the root.
     #
-    # The silhouette is a triangle whichever way you build it, so none of
-    # the wrong ones looked wrong on their own - only worn. Written out
-    # as the shape it makes rather than as the shape it came from: the
-    # narrow end meets the back, the blade widens going away from the
-    # player, and the mass finishes low and behind. The two-unit
-    # thickening is at the bottom of the far end, where the weight of the
-    # thing wants to be.
+    # It used to be four units thick for the three slices nearest the
+    # back and two beyond them, which put all the weight at one END of
+    # the attachment - a lump under the fin rather than a root. Thickness
+    # does belong where a fin meets a body, but along the middle of the
+    # join, not piled at the bottom of it, so the blade is an even two
+    # units everywhere and the four-unit band sits centred on the back
+    # and tapers out over two slices.
     #
-    # If it still wants turning, it does not need rebuilding: the model
-    # is symmetric across x, so 180 degrees about Y swaps near for far
-    # and 180 about X does that and top for bottom as well. Both are
-    # rotX and rotY on the placement, live.
-    # Written root-first: index 0 is the slice against the back, and each
-    # one after it is a step further away. The deep end of the blade and
-    # the thickening both belong AT the back - that is the edge the fin
-    # is attached by - and it narrows and climbs going away, finishing
-    # as a short stub high and behind.
+    # Each slice is therefore up to three boxes stacked in y: thin, thick,
+    # thin. Where two of them meet, the shared plane is interior to the
+    # solid they form together, so neither face is ever reachable by a
+    # ray and there is nothing to z-fight.
     #
-    # Mirrored in place rather than re-authored, so the bounding box is
-    # unchanged and the placement numbers still mean what they did.
-    blade = [(14, 16, 4, 15), (12, 14, 4, 15), (10, 12, 5, 14),
-             (8, 10, 6, 14), (6, 8, 8, 13), (4, 6, 10, 13)]
-    butt = [(14, 16, 1, 5), (12, 14, 2, 6), (10, 12, 3, 7)]
+    # Written root-first: index 0 is the slice touching the back.
+    slices = [(14, 16, 1, 15, (5, 11)), (12, 14, 2, 15, (6, 10)),
+              (10, 12, 3, 14, None), (8, 10, 6, 14, None),
+              (6, 8, 8, 13, None), (4, 6, 10, 13, None)]
     out = []
-    for n, (z0, z1, y0, y1) in enumerate(butt):
-        out.append(Box((6, y0, z0), (10, y1, z1),
-                       coat((96 + 6 * n, 108 + 6 * n, 120 + 6 * n, 255),
-                            grey, 2 + n), "butt%d" % n))
-    for n, (z0, z1, y0, y1) in enumerate(blade):
-        out.append(Box((7, y0, z0), (9, y1, z1),
-                       coat((112 + 7 * n, 124 + 7 * n, 136 + 7 * n, 255),
-                            pale if n < 3 else grey_l, 9 + n), "blade%d" % n))
+    for n, (z0, z1, y0, y1, thick) in enumerate(slices):
+        skin = coat((112 + 7 * n, 124 + 7 * n, 136 + 7 * n, 255),
+                    pale if n > 2 else grey_l, 9 + n)
+        if thick is None:
+            out.append(Box((7, y0, z0), (9, y1, z1), skin, "fin%d" % n))
+            continue
+        t0, t1 = thick
+        out.append(Box((7, y0, z0), (9, t0, z1), skin, "fin%dl" % n))
+        out.append(Box((6, t0, z0), (10, t1, z1),
+                       coat((96 + 8 * n, 108 + 8 * n, 120 + 8 * n, 255),
+                            grey, 2 + n), "fin%dm" % n))
+        out.append(Box((7, t1, z0), (9, y1, z1), skin, "fin%du" % n))
     return out
 
 
